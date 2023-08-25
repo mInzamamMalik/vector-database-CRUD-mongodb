@@ -2,8 +2,12 @@ import express, { response } from 'express';
 import { PineconeClient } from "@pinecone-database/pinecone";
 import { Configuration, OpenAIApi } from "openai";
 import { customAlphabet } from 'nanoid'
-const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10)
 import axios from 'axios'
+import {} from '../helper/mongodbHelper.mjs'
+
+const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10)
+
+
 const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -127,21 +131,7 @@ router.post('/faqs', async (req, res, next) => {
         },)
 
     })
-    const upsertRequest = {
-        vectors: [
-            {
-                id: nanoid(), // unique id,
-                values: vector,
-                metadata: {
-                    question: req.body.question,
-                    answer: req.body.answer,
-                    created: Date.now(),
-                    modified: Date.now()
-                },
-            }
-        ],
-        namespace: process.env.PINECONE_NAME_SPACE,
-    };
+   
     const upsertResponse = await index.upsert({ upsertRequest });
 
     res.send('post created');
@@ -311,4 +301,9 @@ router.delete('/faqs', async (req, res, next) => {
 })
 
 
+
+
 export default router
+
+
+

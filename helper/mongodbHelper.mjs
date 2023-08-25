@@ -49,56 +49,26 @@ const insertSingleDocumentIntoMongodb = async (text) => {
     console.log("vector: ", vector);
     // [ 0.0023063174, -0.009358601, 0.01578391, ... , 0.01678391, ]
 
-
-    const index = pinecone.Index(process.env.PINECONE_INDEX_NAME);
-
     try {
         const insertResponse = await faqCollection.insertOne({
-            title: req.body.title,
-            text: req.body.text,
+            text: text,
+            plot_embedding: vector,
             createdOn: new Date(),
-            plot_embedding: vector
         });
-        console.log("insertResponse: ", insertResponse);
 
-        res.send('post created');
+        console.log("insertResponse: ", insertResponse);
+        return insertResponse;
     } catch (e) {
         console.log("error inserting mongodb: ", e);
-        res.status(500).send('server error, please try later');
     }
-
-
-
-    const upsertRequest = {
-        vectors: [
-            {
-                id: nanoid(), // unique id, // unique id
-                values: vector,
-                metadata: {
-                    genre: "drama",
-                },
-            },
-            // {
-            //     id: "vec2",
-            //     values: [0.2, 0.3, 0.4, 0.5],
-            //     metadata: {
-            //         genre: "action",
-            //     },
-            // },
-        ],
-        namespace: process.env.PINECONE_NAME_SPACE,
-    };
-    const upsertResponse = await index.upsert({ upsertRequest });
-    console.log("upsertResponse: ", upsertResponse);
-    return upsertResponse;
 }
 // insertSingleDocumentIntoPinecone("this is some text data to be inserted into pinecone index")
 
 
 
-const insertMultipleDocumentIntoPinecone = async () => {
+const insertMultipleDocumentIntoPinecone = async (questionsJsonArr) => {
 
-    const allQuestionEmbeddingRequests = questions.map((eachQuestion, index) => {
+    const allQuestionEmbeddingRequests = questionsJsonArr.map((eachQuestion, index) => {
         return openai.createEmbedding({
             model: "text-embedding-ada-002",
             input: `!!! question: ${eachQuestion.question} ### answer:${eachQuestion.answer} $$$`.trim().replaceAll('\n', ' ') // removing all line breaks
@@ -107,18 +77,7 @@ const insertMultipleDocumentIntoPinecone = async () => {
     console.log("converting all questions into vector with openai embedding... please wait");
     const allQuestionsVector = await Promise.all(allQuestionEmbeddingRequests)
 
-    const upsertRequest = {
-        vectors: [
-            // {
-            //     id: nanoid(), // unique id
-            //     values: vector,
-            //     metadata: {
-            //         genre: "drama",
-            //     },
-            // }
-        ],
-        namespace: process.env.PINECONE_NAME_SPACE,
-    };
+    const allDocs = [];
 
     console.log("allQuestionsVector: ", allQuestionsVector);
 
@@ -130,26 +89,20 @@ const insertMultipleDocumentIntoPinecone = async () => {
         console.log("originalText: ", originalText);
         console.log("vectorRepresentation: ", vectorRepresentation);
 
-        upsertRequest.vectors.push({
-            id: nanoid(), // unique id
-            values: vectorRepresentation,
-            metadata: {
-                originalText: originalText,
-            },
-        },)
-
+        allDocs.push({
+            text: originalText,
+            createdOn: new Date(),
+            plot_embedding: vectorRepresentation,
+        })
     })
 
-    console.log("upsertRequest: ", upsertRequest);
+    console.log("inserting all vectors into mongodb vector database... please wait");
 
-    console.log("inserting all vectors into pinecone vector database... please wait");
-
-    const index = pinecone.Index(process.env.PINECONE_INDEX_NAME);
-    const upsertResponse = await index.upsert({ upsertRequest });
+    const upsertResponse = await faqCollection.insertMany(allDocs)
     console.log("upsertResponse: ", upsertResponse);
-
+    return upsertResponse;
 }
-// insertMultipleDocumentIntoPinecone();
+insertMultipleDocumentIntoPinecone(questions);
 
 
 const deleteAllVectorsOfIndex = async () => {

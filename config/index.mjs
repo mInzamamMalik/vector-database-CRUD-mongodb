@@ -1,6 +1,6 @@
 import "dotenv/config.js";
 if (
-    !process.env.PINECONE_INDEX_NAME
+    !process.env.MONGODB_URI
     || !process.env.OPENAI_API_KEY) {
     throw new Error('Missing env variables');
 }
